@@ -8,8 +8,7 @@
 		"Romoz"
 	],
 	"contact": {
-		"homepage": "https://yourhomepage.com",
-		"sources": "https://github.com/your-repository"
+		"sources": "https://github.com/Romozz/GTB-Solver-Fabric"
 	},
 	"license": "MIT",
 	"icon": "assets/gtbsolver/icon.png",
@@ -21,6 +20,15 @@
 	},
 	"depends": {
 		"fabric-api": "*",
-		"minecraft": "[1.14.4,)"
+		"minecraft": [
+			"1.14.4",
+			"1.15.x",
+			"1.16.x",
+			"1.17.x",
+			"1.18.x",
+			"1.19.x",
+			"1.20.x",
+			"1.21.x"
+		]
 	}
 }
