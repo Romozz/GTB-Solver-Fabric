@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "gtbsolver",
+	"version": "1.0.0",
+	"name": "GTBSolver",
+	"description": "A mod for Guess The Build that helps players by providing possible words based on partial patterns. For example, using the command /gtb z__ will return 'zoo' and other relevant words, helping players make the best guess.",
+	"authors": [
+		"Romoz"
+	],
+	"contact": {
+		"homepage": "https://yourhomepage.com",
+		"sources": "https://github.com/your-repository"
+	},
+	"license": "MIT",
+	"icon": "assets/gtbsolver/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.romoz.gtb.GTBSolver"
+		]
+	},
+	"depends": {
+		"fabric-api": "*",
+		"minecraft": "[1.14.4,)"
+	}
+}
