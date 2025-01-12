@@ -1,12 +1,12 @@
 # GTBSolver
 
-GTBSolver is a Minecraft mod that helps players on the **Hypixel** server in the **Guess The Build** game. The mod uses patterns to find possible words that can be used for building, enhancing the guessing experience.
+GTBSolver is a Minecraft mod, cheat that helps players on the **Hypixel** server in the **Guess The Build** game. The mod uses patterns to find possible words that can be used for building, enhancing the guessing experience.
 
 When a pattern appears in the game, like `z__`, you can enter the command `/gtb z__`, and the mod will provide a list of possible words like "zoo", or others, that could fit the pattern.
 
 ---
 
-**GTBSolver** — это мод для Minecraft, который помогает игрокам на сервере **Hypixel** в игре **Guess The Build**. Мод использует паттерны для поиска возможных слов, которые могут быть использованы для построек, улучшая процесс угадывания.
+**GTBSolver** — это мод, чит для Minecraft, который помогает игрокам на сервере **Hypixel** в игре **Guess The Build**. Мод использует паттерны для поиска возможных слов, которые могут быть использованы для построек, улучшая процесс угадывания.
 
 Когда в игре появляется шаблон, например `а___з`, вы можете ввести команду `/gtb а___з`, и мод предложит список возможных слов, таких как "арбуз", или другие, которые могут подходить под этот шаблон.
 
