@@ -1,10 +1,7 @@
 name: Java CI with Gradle and Minecraft Client Mod CI with Fabric
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:  # Этот блок позволяет запускать workflow вручную
 
 jobs:
   build:
