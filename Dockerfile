@@ -5,6 +5,9 @@ FROM openjdk:21-jdk-slim
 RUN apt-get update && apt-get install -y curl unzip iputils-ping && \
     echo "Dependencies installed successfully" 
 
+# Создаем директорию /minecraft, если её нет
+RUN mkdir -p /minecraft
+
 # Устанавливаем Fabric для Minecraft 1.21.4
 RUN echo "Downloading Fabric installer" && \
     curl -Lo fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar && \
