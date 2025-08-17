@@ -1,0 +1,46 @@
+name: Minecraft Client Mod CI with Fabric
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Устанавливаем Docker
+    - name: Set up Docker
+      run: |
+        sudo apt-get update
+        sudo apt-get install docker.io
+
+    # Скачиваем Docker образ и строим Minecraft с Fabric
+    - name: Build Minecraft client with Fabric and mod
+      run: |
+        docker build -t minecraft-fabric-client .
+
+    # Запускаем Minecraft клиент с модом
+    - name: Run Minecraft client with mod
+      run: |
+        docker run -d --name minecraft-client minecraft-fabric-client
+
+    # Ожидаем загрузки Minecraft и модов
+    - name: Wait for Minecraft to start
+      run: sleep 60
+
+    # Отправляем команду в Minecraft
+    - name: Send /gtb a___з to Minecraft chat
+      run: |
+        docker exec -it minecraft-client /bin/bash -c "echo '/gtb a___з' > /minecraft/logs/latest.log" # Эмуляция команды
+
+    # Проверяем результат в логе
+    - name: Check Minecraft logs for output
+      run: |
+        docker logs minecraft-client | grep "Possible words for 'a___з'" # Проверяем логи на результат команды
