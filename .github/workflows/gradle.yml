@@ -75,11 +75,16 @@ jobs:
         name: minecraft-mod
         path: ./mod
 
-    # Распаковываем артефакт, если он в ZIP
-    - name: Unzip mod artifact
+    # Проверяем содержимое директории mod после загрузки артефакта
+    - name: List contents of mod directory
+      run: ls -l ./mod
+
+    # Переименовываем файл в .zip и распаковываем его
+    - name: Rename and unzip mod artifact
       run: |
-        mv ./mod/mod ./mod/minecraft-mod.zip  # Переименовываем файл в .zip
+        mv ./mod/* ./mod/minecraft-mod.zip  # Переименовываем первый файл в .zip
         unzip ./mod/minecraft-mod.zip -d ./mod/  # Распаковываем
+
 
     # Строим Docker образ с Minecraft клиентом и модом
     - name: Build Minecraft client with Fabric and mod
