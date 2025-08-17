@@ -1,7 +1,7 @@
 name: Java CI with Gradle and Minecraft Client Mod CI with Fabric
 
 on:
-  workflow_dispatch:  # Этот блок позволяет запускать workflow вручную
+  workflow_dispatch:  # Запуск вручную
 
 jobs:
   build:
@@ -56,16 +56,8 @@ jobs:
     # Устанавливаем Docker
     - name: Set up Docker
       run: |
-        sudo apt-get remove docker docker-engine docker.io containerd runc
         sudo apt-get update
-        sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        sudo add-apt-repository \
-          "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-          $(lsb_release -cs) \
-          stable"
-        sudo apt-get update
-        sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+        sudo apt-get install docker.io
 
     # Скачиваем артефакт мода
     - name: Download mod jar artifact
@@ -74,10 +66,15 @@ jobs:
         name: minecraft-mod
         path: ./mod
 
+    # Распаковываем артефакт, если он в ZIP
+    - name: Unzip mod artifact
+      run: |
+        unzip ./mod/*.zip -d ./mod/
+
     # Строим Docker образ с Minecraft клиентом и модом
     - name: Build Minecraft client with Fabric and mod
       run: |
-        docker build -t minecraft-fabric-client --build-arg MOD_PATH=./mod/minecraft-mod-1.0.0.jar .
+        docker build -t minecraft-fabric-client --build-arg MOD_PATH=./mod/GTB-Solver-Fabric-1.0.0.jar .
 
     # Запускаем Minecraft клиент с модом
     - name: Run Minecraft client with mod
