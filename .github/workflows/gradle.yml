@@ -79,13 +79,6 @@ jobs:
     - name: List contents of mod directory
       run: ls -l ./mod
 
-    # Переименовываем файл в .zip и распаковываем его
-    - name: Rename and unzip mod artifact
-      run: |
-        mv ./mod/* ./mod/minecraft-mod.zip  # Переименовываем первый файл в .zip
-        unzip ./mod/minecraft-mod.zip -d ./mod/  # Распаковываем
-
-
     # Строим Docker образ с Minecraft клиентом и модом
     - name: Build Minecraft client with Fabric and mod
       run: |
