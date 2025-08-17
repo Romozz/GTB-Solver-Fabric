@@ -78,7 +78,8 @@ jobs:
     # Распаковываем артефакт, если он в ZIP
     - name: Unzip mod artifact
       run: |
-        unzip ./mod/*.zip -d ./mod/
+        mv ./mod/mod ./mod/minecraft-mod.zip  # Переименовываем файл в .zip
+        unzip ./mod/minecraft-mod.zip -d ./mod/  # Распаковываем
 
     # Строим Docker образ с Minecraft клиентом и модом
     - name: Build Minecraft client with Fabric and mod
