@@ -3,13 +3,14 @@ FROM openjdk:21-jdk-slim
 
 # Устанавливаем зависимости для Minecraft и добавляем утилиту ping
 RUN apt-get update && apt-get install -y curl unzip iputils-ping && \
-    echo "Dependencies installed successfully" 
+    echo "Dependencies installed successfully"
 
 # Создаем директорию /minecraft, если её нет
 RUN mkdir -p /minecraft
 
-# Создаем директорию .minecraft и корректные файлы конфигурации
+# Создаем необходимые директории и пустой профиль Minecraft
 RUN mkdir -p /minecraft/.minecraft/versions/1.21.4 && \
+    mkdir -p /minecraft/.minecraft/libraries && \
     echo '{}' > /minecraft/.minecraft/launcher_profiles.json && \
     echo "Empty launcher profile created"
 
@@ -17,7 +18,7 @@ RUN mkdir -p /minecraft/.minecraft/versions/1.21.4 && \
 RUN echo "Downloading Fabric installer" && \
     curl -Lo fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar && \
     echo "Fabric installer downloaded successfully" && \
-    # Создаем директорию и инициализируем Minecraft
+    # Запускаем установку Fabric
     java -jar fabric-installer.jar client -mcversion 1.21.4 -loader 0.16.9 -dir /minecraft || \
     { echo "Fabric installation failed"; exit 1; }
 
