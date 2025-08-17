@@ -1,12 +1,20 @@
-# Используем образ openjdk для Minecraft
-FROM openjdk:17-jdk-slim
+# Используем образ openjdk 21 для Minecraft
+FROM openjdk:21-jdk-slim
 
 # Устанавливаем зависимости для Minecraft
-RUN apt-get update && apt-get install -y curl unzip
+RUN apt-get update && apt-get install -y curl unzip && \
+    echo "Dependencies installed successfully" 
+
+# Проверка доступа в интернет перед загрузкой Fabric
+RUN echo "Checking internet connection" && \
+    ping -c 4 google.com || { echo "Network issue detected"; exit 1; }
 
 # Устанавливаем Fabric для Minecraft 1.21.4
-RUN curl -Lo fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar \
-    && java -jar fabric-installer.jar client -mcversion 1.21.4 -loader 0.16.9 -dir /minecraft
+RUN echo "Downloading Fabric installer" && \
+    curl -Lo fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar && \
+    echo "Fabric installer downloaded successfully" && \
+    java -jar fabric-installer.jar client -mcversion 1.21.4 -loader 0.16.9 -dir /minecraft || \
+    { echo "Fabric installation failed"; exit 1; }
 
 # Принимаем путь к модификации как аргумент
 ARG MOD_PATH
