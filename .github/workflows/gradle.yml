@@ -49,6 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    needs: build  # Задача test будет ждать завершения задачи build
 
     steps:
     - uses: actions/checkout@v4
