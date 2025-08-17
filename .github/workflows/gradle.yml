@@ -43,7 +43,7 @@ jobs:
 
     # Publish the build artifact (e.g., mod .jar file) as a GitHub Artifact
     - name: Upload mod jar as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: minecraft-mod
         path: build/libs/*.jar
