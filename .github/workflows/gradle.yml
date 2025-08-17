@@ -96,7 +96,7 @@ jobs:
     # Отправляем команду в Minecraft
     - name: Send /gtb a___з to Minecraft chat
       run: |
-        docker exec -it minecraft-client /bin/bash -c "echo '/gtb a___з' > /minecraft/logs/latest.log" # Эмуляция команды
+        docker exec minecraft-client /bin/bash -c "echo '/gtb a___з' > /minecraft/logs/latest.log" # Эмуляция команды
 
     # Проверяем результат в логе
     - name: Check Minecraft logs for output
