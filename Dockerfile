@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y curl unzip iputils-ping && \
 # Создаем директорию /minecraft, если её нет
 RUN mkdir -p /minecraft
 
+# Создаем пустой профиль для Minecraft
+RUN mkdir -p /minecraft/.minecraft && \
+    echo '{}' > /minecraft/.minecraft/launcher_profiles.json && \
+    echo "Empty launcher profile created"
+
 # Устанавливаем Fabric для Minecraft 1.21.4
 RUN echo "Downloading Fabric installer" && \
     curl -Lo fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar && \
