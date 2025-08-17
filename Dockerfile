@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 RUN apt-get update && apt-get install -y curl unzip
 
 # Устанавливаем Fabric для Minecraft 1.21.4
-RUN curl -Lo fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/0.11.3/fabric-installer-0.11.3.jar \
+RUN curl -Lo fabric-installer.jar https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.0/fabric-installer-1.1.0.jar \
     && java -jar fabric-installer.jar client -mcversion 1.21.4 -loader 0.16.9 -dir /minecraft
 
 # Принимаем путь к модификации как аргумент
