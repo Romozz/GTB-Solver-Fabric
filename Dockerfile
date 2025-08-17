@@ -1,8 +1,8 @@
 # Используем образ openjdk 21 для Minecraft
 FROM openjdk:21-jdk-slim
 
-# Устанавливаем зависимости для Minecraft
-RUN apt-get update && apt-get install -y curl unzip && \
+# Устанавливаем зависимости для Minecraft и добавляем утилиту ping
+RUN apt-get update && apt-get install -y curl unzip iputils-ping && \
     echo "Dependencies installed successfully" 
 
 # Проверка доступа в интернет перед загрузкой Fabric
