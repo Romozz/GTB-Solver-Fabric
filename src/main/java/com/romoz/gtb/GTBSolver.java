@@ -56,16 +56,17 @@ public class GTBSolver implements ModInitializer {
     // Отправка успешного сообщения с кликабельными словами
     public static void sendClickableWords(String pattern, List<String> words) {
         MutableText message = Text.literal(PREFIX)
-                .append(Text.literal("Possible words for '").setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xD3D3D3)))) // Светлый серый для текста "Possible words for"
+                .append(Text.literal("Possible words for: "  + pattern).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xD3D3D3)))) // Светлый серый для текста "Possible words for"
                 .append(Text.literal(pattern).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xD3D3D3)))) // Светлый серый для паттерна
                 .append(Text.literal("':").setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xD3D3D3)))); // Светлый серый для ":"
 
         for (String word : words) {
+            String lowercaseWord = word.toLowerCase(); // Преобразуем слово в нижний регистр
             // Используем более светлый желтый (цвет #FFFF99) для кликабельных слов
-            MutableText clickableWord = Text.literal(word)
+            MutableText clickableWord = Text.literal(lowercaseWord)
                     .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFF99)) // Светло-желтый для кликабельных слов
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, word)) // При клике вставляется слово
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to insert: " + word)
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, lowercaseWord)) // При клике вставляется слово
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to insert: " + lowercaseWord)
                                     .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFF00)))) // Подсказка с цветом
                             )
                     );
@@ -81,3 +82,4 @@ public class GTBSolver implements ModInitializer {
         MinecraftClient.getInstance().player.sendMessage(message, false);
     }
 }
+
