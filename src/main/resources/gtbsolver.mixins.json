@@ -1,0 +1,11 @@
+{
+	"required": true,
+	"package": "com.romoz.gtb.mixin",
+	"refmap": "gtbsolver.refmap.json",
+	"mixins": [
+		"ActionBarMixin"
+	],
+	"client": [
+		"ActionBarMixin"
+	]
+}

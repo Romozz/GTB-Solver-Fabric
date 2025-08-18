@@ -18,6 +18,9 @@
 			"com.romoz.gtb.GTBSolver"
 		]
 	},
+	"mixins": [
+		"gtbsolver.mixins.json"
+	],
 	"depends": {
 		"fabric-api": "*",
 		"minecraft": [
