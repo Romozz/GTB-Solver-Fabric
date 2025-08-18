@@ -106,20 +106,21 @@ public class GTBSolver implements ModInitializer {
     // Отправка кликабельных слов с плюсиками в скобках и задержкой
     public static void sendClickableWords(String pattern, List<String> words) {
         MutableText message = Text.literal(PREFIX)
-                .append(Text.literal("Possible words for '").setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xD3D3D3)))); // Оформление
+                .append(Text.literal("Possible words for: " + pattern).setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xD3D3D3)))); // Оформление
 
         for (String word : words) {
+            String lowerWord = word.toLowerCase();
             // Выбираем насыщенный желтый цвет для слов
-            MutableText clickableWord = Text.literal(word)
+            MutableText clickableWord = Text.literal(lowerWord)
                     .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFF00)) // Яркий желтый цвет для слова
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/gtbsolver:click false " + word)) // Команда клика для обычного слова
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to insert: " + word)
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/gtbsolver:click false " + lowerWord)) // Команда клика для обычного слова
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to insert: " + lowerWord)
                                     .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFF00))))));
 
             // Плюсик в скобках другого цвета
             MutableText plusSign = Text.literal(" (+)")
                     .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x00FF00)) // Зеленый цвет для плюсика
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/gtbsolver:click true " + word))); // Команда клика с добавлением стрелочек
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/gtbsolver:click true " + lowerWord))); // Команда клика с добавлением стрелочек
 
             message.append(Text.literal(", ")).append(clickableWord).append(plusSign); // Разделители между словами и плюсиками
         }
@@ -138,3 +139,4 @@ public class GTBSolver implements ModInitializer {
         }
     }
 }
+
