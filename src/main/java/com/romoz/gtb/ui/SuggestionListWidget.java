@@ -50,20 +50,14 @@ public class SuggestionListWidget extends AlwaysSelectedEntryListWidget<Suggesti
         return this.width - 8;
     }
 
-    @Override
-    public void render(DrawContext dc, int mouseX, int mouseY, float delta) {
-        super.render(dc, mouseX, mouseY, delta);
-        String caption = "Совпадения: " + items.size();
-        dc.drawText(this.client.textRenderer, Text.literal(caption), this.getRowLeft(), this.getY() - 10, 0xAAAAAA, false);
-    }
-
     public class Entry extends AlwaysSelectedEntryListWidget.Entry<Entry> {
         private final String value;
 
         public Entry(String v) { this.value = v; }
 
         @Override
-        public void render(DrawContext dc, int idx, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float delta) {
+        public void render(DrawContext dc, int idx, int y, int x, int entryWidth, int entryHeight,
+                           int mouseX, int mouseY, boolean hovered, float delta) {
             boolean selected = SuggestionListWidget.this.getSelectedOrNull() == this;
             int color = (hovered || selected) ? 0xFFFFFFFF : 0xFFCCCCCC;
             dc.drawText(SuggestionListWidget.this.client.textRenderer, Text.literal(value), x + 4, y + 2, color, false);
