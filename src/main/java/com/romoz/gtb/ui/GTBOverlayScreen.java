@@ -1,28 +1,38 @@
 package com.romoz.gtb.ui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.romoz.gtb.logic.CandidatesProvider;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import com.romoz.gtb.logic.CandidatesProvider;
-
+/**
+ * Оверлей для ввода длины/букв и просмотра кандидатов.
+ * Открывается хоткеем из GTBSolver.
+ */
 public class GTBOverlayScreen extends Screen {
 
     private final PatternState state;
+
     private TextFieldWidget lengthField;
-    private final List<CharSlotWidget> slots = new ArrayList<>();
     private SuggestionListWidget suggestions;
 
-    private long lastChangeNanos = 0L; // дебаунс
+    private long lastChangeNanos = 0L;                 // для дебаунса
     private static final long DEBOUNCE_NS = 75_000_000L; // 75 мс
+
+    // параметры сетки слотов
+    private static final int MAX_PER_ROW = 18;
+    private static final int GAP = 4;
+    private static final int CELL = 20;
+
+    // координаты и размеры основного окна
+    private int winLeft, winTop, winW, winH;
 
     public GTBOverlayScreen(PatternState state) {
         super(Text.translatable("screen.gtbsolver.title"));
@@ -31,47 +41,48 @@ public class GTBOverlayScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = 360;
-        int h = 240;
-        int left = (this.width - w) / 2;
-        int top  = (this.height - h) / 2;
+        // размеры окна
+        winW = 360;
+        winH = 260;
+        winLeft = (this.width - winW) / 2;
+        winTop  = (this.height - winH) / 2;
 
-        // Поле длины
-        lengthField = new TextFieldWidget(textRenderer, left + 12, top + 12, 64, 20, Text.of("len"));
+        // ===== поле "Длина" =====
+        lengthField = new TextFieldWidget(textRenderer, winLeft + 12, winTop + 12, 64, 20, Text.of("len"));
         lengthField.setPlaceholder(Text.of("len"));
         lengthField.setChangedListener(s -> {
             int len = parseLen(s);
             if (len != state.getLength()) {
                 state.setLength(len);
-                rebuildSlots(left, top);
-                markDirty();
+                rebuildSlotsAndList();   // пересоздать сетку и список
+                markDirty();             // запросить пересчёт кандидатов
             }
         });
         if (state.getLength() <= 0) state.setLength(10);
         lengthField.setText(Integer.toString(state.getLength()));
         addDrawableChild(lengthField);
 
-        // Кнопки
+        // ===== кнопка "Очистить" =====
         addDrawableChild(ButtonWidget.builder(Text.translatable("gtbsolver.clear"), b -> {
             state.clear();
             markDirty();
-        }).dimensions(left + 84, top + 12, 64, 20).build());
+        }).dimensions(winLeft + 84, winTop + 12, 64, 20).build());
 
+        // ===== кнопка "Вставить в чат" (без автосенда) =====
         addDrawableChild(ButtonWidget.builder(Text.translatable("gtbsolver.paste_to_chat"), b -> {
             String best = suggestions != null ? suggestions.getSelectedOrFirst() : null;
             if (best != null) insertToChat(best);
-        }).dimensions(left + 152, top + 12, 196, 20).build());
+        }).dimensions(winLeft + 152, winTop + 12, 196, 20).build());
 
-        // Слоты + список
-        rebuildSlots(left, top);
+        // первичное создание слотов и списка
+        rebuildSlotsAndList();
 
-        // Слушатель состояния от миксина (action bar)
+        // подтягиваем обновления от PatternState (например, из action bar)
         state.setListener(s -> {
             if (lengthField != null && s.getLength() != parseLen(lengthField.getText())) {
                 lengthField.setText(Integer.toString(s.getLength()));
-                rebuildSlots(left, top);
+                rebuildSlotsAndList();
             }
-            // обновление кандидатов
             markDirty();
         });
     }
@@ -84,54 +95,57 @@ public class GTBOverlayScreen extends Screen {
     private void insertToChat(String text) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player != null) {
-            mc.inGameHud.getChatHud().addToMessageHistory(text);
-            mc.setScreen(null);
+            // помещаем в буфер обмена и закрываем экран;
+            // отправку игрок выполняет вручную (T -> Ctrl+V -> Enter)
             mc.keyboard.setClipboard(text);
-            // Просто вставка в поле чата (без автосенда)
-            mc.player.sendMessage(Text.literal("§7[GTB] Вставлено в буфер, нажмите T и §fCtrl+V§7"), false);
+            if (mc.inGameHud != null) {
+                mc.inGameHud.getChatHud().addToMessageHistory(text);
+            }
+            mc.setScreen(null);
         }
     }
 
-    private void rebuildSlots(int left, int top) {
-        // удалить старые
-        slots.forEach(this::remove);
-        if (suggestions != null) remove(suggestions);
-        slots.clear();
+    private void rebuildSlotsAndList() {
+        // удалить старые слоты и список
+        if (!this.children().isEmpty()) {
+            // удаляем только наши кастомные виджеты (слоты и список)
+            this.children().removeIf(e -> (e instanceof CharSlotWidget) || (e instanceof SuggestionListWidget));
+            this.drawables.removeIf(d -> (d instanceof CharSlotWidget) || (d instanceof SuggestionListWidget));
+            this.selectables.removeIf(s -> (s instanceof CharSlotWidget) || (s instanceof SuggestionListWidget));
+        }
 
-        int maxPerRow = 18;
-        int gap = 4;
-        int cellW = 20;
+        // ===== сетка слотов =====
         int len = state.getLength();
-        int x = left + 12;
-        int y = top + 44;
+        int x = winLeft + 12;
+        int y = winTop + 44;
 
         for (int i = 0; i < len; i++) {
-            int col = i % maxPerRow;
-            int row = i / maxPerRow;
-            int cx = x + col * (cellW + gap);
-            int cy = y + row * (cellW + gap);
+            int col = i % MAX_PER_ROW;
+            int row = i / MAX_PER_ROW;
+            int cx = x + col * (CELL + GAP);
+            int cy = y + row * (CELL + GAP);
 
-            CharSlotWidget slot = new CharSlotWidget(textRenderer, cx, cy, cellW, cellW, i, ch -> {
+            CharSlotWidget slot = new CharSlotWidget(textRenderer, cx, cy, CELL, CELL, i, ch -> {
                 state.setChar(i, ch);
                 markDirty();
             });
             addDrawableChild(slot);
-            slots.add(slot);
+            addSelectableChild(slot);
         }
 
-        // список кандидатов
-        int listLeft = left + 12;
-        int rows = (int)Math.ceil(len / (double)maxPerRow);
-        int listTop = y + rows * (cellW + gap) + 8;
-        int listW = 336;
-        int listH = 120;
+        // ===== список кандидатов =====
+        int rows = (int)Math.ceil(len / (double)MAX_PER_ROW);
+        int listLeft = winLeft + 12;
+        int listTop  = y + rows * (CELL + GAP) + 8;
+        int listW    = 336;
+        int listH    = 120;
 
-        suggestions = new SuggestionListWidget(client, listW, listH, listTop, listTop + listH, 16);
-        suggestions.setLeftPos(listLeft);
-        addSelectableChild(suggestions);
+        suggestions = new SuggestionListWidget(client, listW, listH, listTop, listTop + listH);
+        suggestions.setX(listLeft);
         addDrawableChild(suggestions);
+        addSelectableChild(suggestions);
 
-        markDirty();
+        markDirty(); // пересчитать кандидатов с новым layout
     }
 
     private void markDirty() {
@@ -140,41 +154,48 @@ public class GTBOverlayScreen extends Screen {
 
     @Override
     public void tick() {
-        // Дебаунс пересчёта
-        if (System.nanoTime() - lastChangeNanos >= DEBOUNCE_NS && suggestions != null) {
+        // Дебаунс пересчёта списка
+        if (suggestions != null && System.nanoTime() - lastChangeNanos >= DEBOUNCE_NS) {
             String regex = state.toPatternRegex();
             int len = state.getLength();
             List<String> result = CandidatesProvider.find(regex, len);
             suggestions.setItems(result);
-            lastChangeNanos = Long.MAX_VALUE;
+            lastChangeNanos = Long.MAX_VALUE; // ждать следующее изменение
         }
     }
 
     @Override
     public void render(DrawContext dc, int mouseX, int mouseY, float delta) {
-        this.renderBackground(dc);
-        int w = 360;
-        int h = 240;
-        int left = (this.width - w) / 2;
-        int top  = (this.height - h) / 2;
-        dc.fill(left, top, left + w, top + h, 0xC0101010);
+        this.renderBackground(dc, mouseX, mouseY, delta);
+
+        // фон окна
+        dc.fill(winLeft, winTop, winLeft + winW, winTop + winH, 0xC0101010);
 
         super.render(dc, mouseX, mouseY, delta);
 
-        dc.drawText(textRenderer, Text.literal("GTB Solver"), left + 12, top - 10, 0xFFFFFF, true);
-        dc.drawText(textRenderer, Text.literal("Длина"), left + 12, top + 2, 0xAAAAAA, false);
+        // заголовки
+        dc.drawText(textRenderer, Text.literal("GTB Solver"), winLeft + 12, winTop - 10, 0xFFFFFF, true);
+        dc.drawText(textRenderer, Text.literal("Длина"),     winLeft + 12, winTop + 2,  0xAAAAAA, false);
     }
 
     @Override
-    public boolean shouldCloseOnEsc() { return true; }
+    public boolean shouldCloseOnEsc() {
+        return true;
+    }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         // Навигация по списку ↑/↓/Enter
         if (suggestions != null) {
-            if (keyCode == InputUtil.GLFW_KEY_UP) { suggestions.moveSelection(-1); return true; }
-            if (keyCode == InputUtil.GLFW_KEY_DOWN) { suggestions.moveSelection(+1); return true; }
-            if (keyCode == InputUtil.GLFW_KEY_ENTER) {
+            if (keyCode == GLFW.GLFW_KEY_UP) {
+                suggestions.moveSelection(-1);
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_DOWN) {
+                suggestions.moveSelection(+1);
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ENTER) {
                 String sel = suggestions.getSelectedOrFirst();
                 if (sel != null) insertToChat(sel);
                 return true;
