@@ -1,6 +1,5 @@
 package com.romoz.gtb.ui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.romoz.gtb.logic.CandidatesProvider;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -10,6 +9,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,6 +33,9 @@ public class GTBOverlayScreen extends Screen {
 
     // координаты и размеры основного окна
     private int winLeft, winTop, winW, winH;
+
+    // трекер динамически добавленных виджетов (чтобы корректно удалять)
+    private final List<Object> dynamicWidgets = new ArrayList<>();
 
     public GTBOverlayScreen(PatternState state) {
         super(Text.translatable("screen.gtbsolver.title"));
@@ -95,8 +98,6 @@ public class GTBOverlayScreen extends Screen {
     private void insertToChat(String text) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player != null) {
-            // помещаем в буфер обмена и закрываем экран;
-            // отправку игрок выполняет вручную (T -> Ctrl+V -> Enter)
             mc.keyboard.setClipboard(text);
             if (mc.inGameHud != null) {
                 mc.inGameHud.getChatHud().addToMessageHistory(text);
@@ -105,14 +106,18 @@ public class GTBOverlayScreen extends Screen {
         }
     }
 
-    private void rebuildSlotsAndList() {
-        // удалить старые слоты и список
-        if (!this.children().isEmpty()) {
-            // удаляем только наши кастомные виджеты (слоты и список)
-            this.children().removeIf(e -> (e instanceof CharSlotWidget) || (e instanceof SuggestionListWidget));
-            this.drawables.removeIf(d -> (d instanceof CharSlotWidget) || (d instanceof SuggestionListWidget));
-            this.selectables.removeIf(s -> (s instanceof CharSlotWidget) || (s instanceof SuggestionListWidget));
+    private void clearDynamicWidgets() {
+        // аккуратно удаляем ранее добавленные слоты/список через публичный API
+        for (Object o : dynamicWidgets) {
+            if (o instanceof SuggestionListWidget w) this.remove(w);
+            else if (o instanceof CharSlotWidget w) this.remove(w);
         }
+        dynamicWidgets.clear();
+        suggestions = null;
+    }
+
+    private void rebuildSlotsAndList() {
+        clearDynamicWidgets();
 
         // ===== сетка слотов =====
         int len = state.getLength();
@@ -129,8 +134,9 @@ public class GTBOverlayScreen extends Screen {
                 state.setChar(i, ch);
                 markDirty();
             });
-            addDrawableChild(slot);
-            addSelectableChild(slot);
+            // addDrawableChild возвращает виджет — сохраним ссылку для удаления
+            CharSlotWidget added = addDrawableChild(slot);
+            dynamicWidgets.add(added);
         }
 
         // ===== список кандидатов =====
@@ -142,8 +148,8 @@ public class GTBOverlayScreen extends Screen {
 
         suggestions = new SuggestionListWidget(client, listW, listH, listTop, listTop + listH);
         suggestions.setX(listLeft);
-        addDrawableChild(suggestions);
-        addSelectableChild(suggestions);
+        SuggestionListWidget addedList = addDrawableChild(suggestions);
+        dynamicWidgets.add(addedList);
 
         markDirty(); // пересчитать кандидатов с новым layout
     }
@@ -167,12 +173,9 @@ public class GTBOverlayScreen extends Screen {
     @Override
     public void render(DrawContext dc, int mouseX, int mouseY, float delta) {
         this.renderBackground(dc, mouseX, mouseY, delta);
-
         // фон окна
         dc.fill(winLeft, winTop, winLeft + winW, winTop + winH, 0xC0101010);
-
         super.render(dc, mouseX, mouseY, delta);
-
         // заголовки
         dc.drawText(textRenderer, Text.literal("GTB Solver"), winLeft + 12, winTop - 10, 0xFFFFFF, true);
         dc.drawText(textRenderer, Text.literal("Длина"),     winLeft + 12, winTop + 2,  0xAAAAAA, false);
