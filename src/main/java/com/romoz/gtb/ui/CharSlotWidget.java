@@ -2,8 +2,9 @@ package com.romoz.gtb.ui;
 
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
+import net.minecraft.client.gui.screen.narration.NarrationPart;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 
 import java.util.function.Consumer;
@@ -49,7 +50,7 @@ public class CharSlotWidget extends ClickableWidget {
 
     @Override
     protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-        builder.put(NarrationMessageBuilder.RequiredNarrationPart.TITLE,
+        builder.put(NarrationPart.TITLE,
                 Text.literal("GTB slot " + (index + 1) + ": " + (value == '\0' ? "empty" : value)));
     }
 }
