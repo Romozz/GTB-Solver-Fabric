@@ -40,12 +40,11 @@ public class SuggestionListWidget extends AlwaysSelectedEntryListWidget<Suggesti
         return items.isEmpty() ? null : items.get(0);
     }
 
-    @Override
+    // В некоторых маппингах эти методы не помечены как @Override — оставим без аннотации.
     protected int getScrollbarPositionX() {
         return this.getRowLeft() + this.getRowWidth() + 6;
     }
 
-    @Override
     public int getRowWidth() {
         return this.width - 8;
     }
