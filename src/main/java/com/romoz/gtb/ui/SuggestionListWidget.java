@@ -218,4 +218,4 @@ public class SuggestionListWidget extends ScrollableWidget {
             builder.put(NarrationPart.TITLE, Text.literal("Подсказки пусты"));
         }
     }
-
+}
