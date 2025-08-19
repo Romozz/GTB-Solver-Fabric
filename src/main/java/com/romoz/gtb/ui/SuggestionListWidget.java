@@ -11,7 +11,8 @@ import java.util.List;
 public class SuggestionListWidget extends AlwaysSelectedEntryListWidget<SuggestionListWidget.Entry> {
 
     private final List<String> items = new ArrayList<>();
-
+    public int getCount() { return items.size(); }
+    
     public SuggestionListWidget(MinecraftClient client, int width, int height, int top, int bottom) {
         super(client, width, height, top, bottom);
     }
