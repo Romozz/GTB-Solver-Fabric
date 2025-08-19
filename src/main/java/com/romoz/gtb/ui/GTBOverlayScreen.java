@@ -195,6 +195,11 @@ public class GTBOverlayScreen extends Screen {
         // заголовки
         dc.drawText(textRenderer, Text.literal("GTB Solver"), winLeft + 12, winTop - 10, 0xFFFFFF, true);
         dc.drawText(textRenderer, Text.literal("Длина"),     winLeft + 12, winTop + 2,  0xAAAAAA, false);
+        if (suggestions != null) {
+            String caption = "Совпадения: " + suggestions.getCount();
+            dc.drawText(textRenderer, Text.literal(caption), winLeft + 12, winTop + winH - 12, 0xAAAAAA, false);
+        }
+
     }
 
     @Override
