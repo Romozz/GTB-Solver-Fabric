@@ -124,20 +124,27 @@ public class GTBOverlayScreen extends Screen {
         int x = winLeft + 12;
         int y = winTop + 44;
 
+        // …в методе rebuildSlotsAndList():
         for (int i = 0; i < len; i++) {
+            final int slotIndex = i; // фиксируем индекс для использования в лямбде
+
             int col = i % MAX_PER_ROW;
             int row = i / MAX_PER_ROW;
             int cx = x + col * (CELL + GAP);
             int cy = y + row * (CELL + GAP);
 
-            CharSlotWidget slot = new CharSlotWidget(textRenderer, cx, cy, CELL, CELL, i, ch -> {
-                state.setChar(i, ch);
-                markDirty();
-            });
-            // addDrawableChild возвращает виджет — сохраним ссылку для удаления
+            CharSlotWidget slot = new CharSlotWidget(
+                textRenderer, cx, cy, CELL, CELL, i,
+                ch -> {
+                    // теперь используем slotIndex, а не изменяемый i
+                    state.setChar(slotIndex, ch);
+                    markDirty();
+                }
+            );
             CharSlotWidget added = addDrawableChild(slot);
             dynamicWidgets.add(added);
         }
+
 
         // ===== список кандидатов =====
         int rows = (int)Math.ceil(len / (double)MAX_PER_ROW);
