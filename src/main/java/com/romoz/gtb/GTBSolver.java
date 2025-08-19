@@ -30,5 +30,31 @@ public class GTBSolver implements ClientModInitializer {
                 }
             }
         });
+    // Обработка клика по слову с учетом задержки и отправка слова от имени игрока
+    public static void handleWordClick(String word, boolean withArrows) {
+        long currentTime = System.currentTimeMillis();
+        long lastClickTime = lastClickTimes.getOrDefault(word, 0L);
+
+        if (currentTime - lastClickTime < CLICK_DELAY) {
+            // Если прошло менее 3 секунд с последнего клика
+            sendFeedback("You must wait 4 seconds before clicking this word again.");
+        } else {
+            // Обновляем время последнего клика
+            lastClickTimes.put(word, currentTime);
+
+            // Отправляем сообщение с выбранным словом в чат и на сервер
+            sendWordToChat(word, withArrows);
+        }
+    }
+
+    // Отправка выбранного слова в чат (с учетом стрелочек)
+    public static void sendWordToChat(String word, boolean withArrows) {
+        if (MinecraftClient.getInstance().player != null) {
+            String formattedWord = withArrows ? "===== " + word + " =====" : word;
+            // Отправляем сообщение от имени игрока
+            MinecraftClient.getInstance().player.networkHandler.sendChatMessage(formattedWord);
+        }
+    }
     }
 }
+
