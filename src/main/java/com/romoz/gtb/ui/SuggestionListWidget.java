@@ -2,8 +2,6 @@ package com.romoz.gtb.ui;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.ParentElement;
-import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
 import net.minecraft.text.Text;
 
@@ -14,8 +12,8 @@ public class SuggestionListWidget extends AlwaysSelectedEntryListWidget<Suggesti
 
     private final List<String> items = new ArrayList<>();
 
-    public SuggestionListWidget(MinecraftClient client, int width, int height, int top, int bottom, int itemHeight) {
-        super(client, width, height, top, bottom, itemHeight);
+    public SuggestionListWidget(MinecraftClient client, int width, int height, int top, int bottom) {
+        super(client, width, height, top, bottom);
     }
 
     public void setItems(List<String> newItems) {
@@ -27,15 +25,17 @@ public class SuggestionListWidget extends AlwaysSelectedEntryListWidget<Suggesti
     }
 
     public void moveSelection(int delta) {
-        int idx = this.getSelected() == null ? 0 : this.children().indexOf(this.getSelected());
+        Entry sel = this.getSelectedOrNull();
+        int idx = (sel == null) ? -1 : this.children().indexOf(sel);
         int n = this.children().size();
         if (n == 0) return;
-        idx = Math.max(0, Math.min(n - 1, idx + delta));
-        this.setSelected(this.children().get(idx));
+        int target = Math.max(0, Math.min(n - 1, (idx < 0 ? 0 : idx + delta)));
+        this.setSelected(this.children().get(target));
+        this.ensureVisible(this.getSelectedOrNull());
     }
 
     public String getSelectedOrFirst() {
-        Entry e = this.getSelected();
+        Entry e = this.getSelectedOrNull();
         if (e != null) return e.value;
         return items.isEmpty() ? null : items.get(0);
     }
@@ -51,11 +51,10 @@ public class SuggestionListWidget extends AlwaysSelectedEntryListWidget<Suggesti
     }
 
     @Override
-    protected void renderList(DrawContext dc, int mouseX, int mouseY, float delta) {
-        super.renderList(dc, mouseX, mouseY, delta);
-        // Заголовок со счётчиком
+    public void render(DrawContext dc, int mouseX, int mouseY, float delta) {
+        super.render(dc, mouseX, mouseY, delta);
         String caption = "Совпадения: " + items.size();
-        dc.drawText(this.client.textRenderer, Text.literal(caption), this.getRowLeft(), this.getTop() - 10, 0xAAAAAA, false);
+        dc.drawText(this.client.textRenderer, Text.literal(caption), this.getRowLeft(), this.getY() - 10, 0xAAAAAA, false);
     }
 
     public class Entry extends AlwaysSelectedEntryListWidget.Entry<Entry> {
@@ -65,15 +64,14 @@ public class SuggestionListWidget extends AlwaysSelectedEntryListWidget<Suggesti
 
         @Override
         public void render(DrawContext dc, int idx, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float delta) {
-            int color = hovered || SuggestionListWidget.this.getSelected() == this ? 0xFFFFFFFF : 0xFFCCCCCC;
+            boolean selected = SuggestionListWidget.this.getSelectedOrNull() == this;
+            int color = (hovered || selected) ? 0xFFFFFFFF : 0xFFCCCCCC;
             dc.drawText(SuggestionListWidget.this.client.textRenderer, Text.literal(value), x + 4, y + 2, color, false);
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            SuggestionListWidget.this.setSelected(this);
-            // ЛКМ — оставить выбранным; вставка делается по кнопке/Enter
-            return true;
+        public Text getNarration() {
+            return Text.literal("Suggestion " + value);
         }
     }
 }
