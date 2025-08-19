@@ -58,6 +58,7 @@ public class GTBOverlayScreen extends Screen {
             if (len != state.getLength()) {
                 state.setLength(len);
                 rebuildSlotsAndList();   // пересоздать сетку и список
+                recalcCandidates();
                 markDirty();             // запросить пересчёт кандидатов
             }
         });
@@ -66,13 +67,13 @@ public class GTBOverlayScreen extends Screen {
         addDrawableChild(lengthField);
 
         // ===== кнопка "Очистить" =====
-        addDrawableChild(ButtonWidget.builder(Text.translatable("gtbsolver.clear"), b -> {
+        addDrawableChild(ButtonWidget.builder(Text.literal("Очистить"), b -> {
             state.clear();
-            markDirty();
+            recalcCandidates();   // пересчитываем сразу
         }).dimensions(winLeft + 84, winTop + 12, 64, 20).build());
 
         // ===== кнопка "Вставить в чат" (без автосенда) =====
-        addDrawableChild(ButtonWidget.builder(Text.translatable("gtbsolver.paste_to_chat"), b -> {
+        addDrawableChild(ButtonWidget.builder(Text.literal("Вставить в чат"), b -> {
             String best = suggestions != null ? suggestions.getSelectedOrFirst() : null;
             if (best != null) insertToChat(best);
         }).dimensions(winLeft + 152, winTop + 12, 196, 20).build());
@@ -86,7 +87,7 @@ public class GTBOverlayScreen extends Screen {
                 lengthField.setText(Integer.toString(s.getLength()));
                 rebuildSlotsAndList();
             }
-            markDirty();
+            recalcCandidates();
         });
     }
 
@@ -104,6 +105,14 @@ public class GTBOverlayScreen extends Screen {
             }
             mc.setScreen(null);
         }
+    }
+    private void recalcCandidates() {
+        if (suggestions == null) return;
+        String regex = state.toPatternRegex();
+        int len = state.getLength();
+        java.util.List<String> result = com.romoz.gtb.logic.CandidatesProvider.find(regex, len);
+        suggestions.setItems(result);
+        lastChangeNanos = Long.MAX_VALUE;
     }
 
     private void clearDynamicWidgets() {
@@ -138,7 +147,7 @@ public class GTBOverlayScreen extends Screen {
                 ch -> {
                     // теперь используем slotIndex, а не изменяемый i
                     state.setChar(slotIndex, ch);
-                    markDirty();
+                    recalcCandidates(); 
                 }
             );
             CharSlotWidget added = addDrawableChild(slot);
