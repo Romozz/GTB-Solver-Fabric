@@ -5,7 +5,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ScrollableWidget;
-import net.minecraft.client.gui.narration.NarrationMessageBuilder;
+import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
+import net.minecraft.client.gui.screen.narration.NarrationPart;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -210,12 +211,11 @@ public class SuggestionListWidget extends ScrollableWidget {
     /* ===== Аудионаряды (доступность) — обязателен для ClickableWidget ===== */
     @Override
     protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-        // Короткое описание для screen narrator
         String s = getSelectedOrFirst();
         if (s != null) {
-            builder.put(NarrationMessageBuilder.NarrationPart.TITLE, Text.literal("Подсказки. Выбрано: " + s));
+            builder.put(NarrationPart.TITLE, Text.literal("Подсказки. Выбрано: " + s));
         } else {
-            builder.put(NarrationMessageBuilder.NarrationPart.TITLE, Text.literal("Подсказки пусты"));
+            builder.put(NarrationPart.TITLE, Text.literal("Подсказки пусты"));
         }
     }
-}
+
