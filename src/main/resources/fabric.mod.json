@@ -12,9 +12,9 @@
 	},
 	"license": "MIT",
 	"icon": "assets/gtbsolver/icon.png",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
-		"main": [
+		"client": [
 			"com.romoz.gtb.GTBSolver"
 		]
 	},
@@ -35,3 +35,4 @@
 		]
 	}
 }
+
