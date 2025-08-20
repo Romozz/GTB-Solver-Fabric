@@ -1,8 +1,8 @@
 package com.romoz.gtb;
 
 import com.romoz.gtb.ui.SuggestionListWidget;
-import com.romoz.gtb.GTBWordList;
-import com.romoz.gtb.ui.PatternState;
+import com.romoz.gtb.GTBWordList;            // <- твоё реальное расположение словаря
+import com.romoz.gtb.ui.PatternState;       // <- PatternState в ui, как ты сказал
 import net.minecraft.client.MinecraftClient;
 
 import java.util.ArrayList;
@@ -18,9 +18,7 @@ import java.util.regex.Pattern;
  *  - фильтрация слов
  *  - безопасное обновление списка подсказок на клиентском треде
  *
- * Важно:
- *  - НЕ изменяет PatternState (только читает snapshot).
- *  - Дебаунсит частые вызовы updateSuggestionsAsync().
+ * НЕ изменяет PatternState (только читает snapshot).
  */
 public final class GTBHelper {
 
@@ -32,10 +30,7 @@ public final class GTBHelper {
 
     private GTBHelper() {}
 
-    /**
-     * Запускает пересчёт подсказок под текущий PatternState.
-     * Вызывать после любого изменения слотов/длины или парсинга actionbar.
-     */
+    /** Запускает пересчёт подсказок под текущий PatternState. */
     public static void updateSuggestionsAsync() {
         final long reqId = REQUEST_ID.incrementAndGet();
 
@@ -46,11 +41,11 @@ public final class GTBHelper {
         // Строим регэксп прямо тут (дёшево)
         final Pattern compiled = buildRegex(mask, len);
 
-        // Фильтрация может быть «тяжёлой» для больших словарей — вынесем из главного треда
+        // Фильтрацию вынесем из главного треда
         new Thread(() -> {
             List<String> words = filterWords(compiled, len);
-            // Публикуем только если это всё ещё актуальный запрос
-            if (reqId < REQUEST_ID.get()) return;
+
+            if (reqId < REQUEST_ID.get()) return; // более новый запрос уже есть
 
             // На клиентском треде обновим список
             MC.execute(() -> {
@@ -59,16 +54,13 @@ public final class GTBHelper {
 
                 SuggestionListWidget list = SuggestionListWidget.get();
                 if (list != null) {
-                    list.setItems(words);
+                    list.setItems(words); // важно: этот метод не должен трогать PatternState
                 }
             });
         }, "GTB-FilterWorker").start();
     }
 
-    /**
-     * Построить regex вида ^A.B..$ где '.' = пустой слот.
-     * Дополнительно нормализует буквы к верхнему регистру.
-     */
+    /** Построить regex вида ^A.B..$ где '.' = пустой слот. */
     public static Pattern buildRegex(char[] mask, int len) {
         if (len <= 0) len = mask != null ? mask.length : 0;
         StringBuilder sb = new StringBuilder(len + 4);
@@ -85,10 +77,7 @@ public final class GTBHelper {
         return Pattern.compile(sb.toString(), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     }
 
-    /**
-     * Применяет фильтр к словарю.
-     * NB: НЕ меняет порядок, но можно добавить сортировку по длине/алфавиту при желании.
-     */
+    /** Применяет фильтр к словарю указанной длины. */
     private static List<String> filterWords(Pattern regex, int len) {
         if (len <= 0) return Collections.emptyList();
 
@@ -107,12 +96,8 @@ public final class GTBHelper {
         return out;
     }
 
-    /* ===================== УТИЛИТЫ (опционально) ===================== */
+    /* ===== опционально, для предпросмотра произвольной маски ===== */
 
-    /**
-     * Прямая фильтрация по произвольной маске (например, пришедшей из actionbar),
-     * не трогая PatternState.
-     */
     public static List<String> previewByMask(String maskLike) {
         if (maskLike == null || maskLike.isEmpty()) return Collections.emptyList();
         String normalized = maskLike.replaceAll("\\s+", "");
@@ -122,4 +107,3 @@ public final class GTBHelper {
         return filterWords(p, len);
     }
 }
-
