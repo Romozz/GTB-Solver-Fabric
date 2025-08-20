@@ -1,3 +1,18 @@
+package com.romoz.gtb.ui;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import net.fabricmc.loader.api.FabricLoader;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.function.IntConsumer;
+
 public final class PatternState {
     private static final PatternState INSTANCE = new PatternState();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
