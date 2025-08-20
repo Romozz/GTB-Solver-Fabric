@@ -1,12 +1,19 @@
 package com.romoz.gtb.mixin;
 
 import com.romoz.gtb.ui.PatternState;
+import com.romoz.gtb.GTBHelper;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.text.Text;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Mixin(InGameHud.class)
 public abstract class ActionBarMixin {
@@ -67,3 +74,4 @@ public abstract class ActionBarMixin {
         });
     }
 }
+
