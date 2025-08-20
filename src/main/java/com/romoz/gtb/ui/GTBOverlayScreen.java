@@ -1,230 +1,191 @@
 package com.romoz.gtb.ui;
 
-import com.romoz.gtb.logic.CandidatesProvider;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 /**
- * Оверлей для ввода длины/букв и просмотра кандидатов.
- * Открывается хоткеем из GTBSolver.
+ * Экран оверлея GTB Solver.
+ * Особенности:
+ *  - Восстанавливает состояние длины и букв из PatternState при открытии
+ *  - Не сбрасывает визуальный ввод при обновлении подсказок
+ *  - Автофокус на первый пустой слот
+ *  - Кнопки для изменения длины (−/+), перестраивание слотов без потери набранного
+ *
+ * Требует:
+ *  - CharSlotWidget (с авто-прыжком вперёд и Backspace логикой)
+ *  - PatternState (getLength, setLength, getChar, setChar, snapshot)
+ *  - GTBHelper.updateSuggestionsAsync()
+ *  - SuggestionListWidget (отображение списка слов)
  */
 public class GTBOverlayScreen extends Screen {
 
-    private final PatternState state;
+    private static final int MIN_LEN = 1;
+    private static final int MAX_LEN = 25;
 
-    private TextFieldWidget lengthField;
-    private SuggestionListWidget suggestions;
+    private final List<CharSlotWidget> slots = new ArrayList<>();
+    private SuggestionListWidget suggestionList;
 
-    private long lastChangeNanos = 0L;                 // для дебаунса
-    private static final long DEBOUNCE_NS = 75_000_000L; // 75 мс
+    // Геометрия слотов и контролов
+    private int slotWidth = 18;
+    private int slotHeight = 22;
+    private int slotGap = 4;
+    private int topPad = 30;
+    private int controlsPad = 8;
 
-    // параметры сетки слотов
-    private static final int MAX_PER_ROW = 18;
-    private static final int GAP = 4;
-    private static final int CELL = 20;
+    private ButtonWidget minusBtn;
+    private ButtonWidget plusBtn;
+    private ButtonWidget clearBtn;
+    private ButtonWidget closeBtn;
 
-    // координаты и размеры основного окна
-    private int winLeft, winTop, winW, winH;
-
-    // трекер динамически добавленных виджетов (чтобы корректно удалять)
-    private final List<Object> dynamicWidgets = new ArrayList<>();
-
-    public GTBOverlayScreen(PatternState state) {
-        super(Text.translatable("screen.gtbsolver.title"));
-        this.state = state;
+    public GTBOverlayScreen() {
+        super(Text.literal("GTB Solver"));
     }
 
     @Override
     protected void init() {
-        // размеры окна
-        winW = 360;
-        winH = 260;
-        winLeft = (this.width - winW) / 2;
-        winTop  = (this.height - winH) / 2;
+        this.clearChildren(); // на случай повторной инициализации
+        slots.clear();
 
-        // ===== поле "Длина" =====
-        lengthField = new TextFieldWidget(textRenderer, winLeft + 12, winTop + 12, 64, 20, Text.of("len"));
-        lengthField.setPlaceholder(Text.of("len"));
-        lengthField.setChangedListener(s -> {
-            int len = parseLen(s);
-            if (len != state.getLength()) {
-                state.setLength(len);
-                rebuildSlotsAndList();   // пересоздать сетку и список
-                recalcCandidates();
-                markDirty();             // запросить пересчёт кандидатов
-            }
-        });
-        if (state.getLength() <= 0) state.setLength(10);
-        lengthField.setText(Integer.toString(state.getLength()));
-        addDrawableChild(lengthField);
+        // Кнопки управления длиной и очисткой
+        int btnY = topPad - 24;
+        int btnW = 20;
+        int btnH = 20;
 
-        // ===== кнопка "Очистить" =====
-        addDrawableChild(ButtonWidget.builder(Text.literal("Очистить"), b -> {
-            state.clear();
-            recalcCandidates();   // пересчитываем сразу
-        }).dimensions(winLeft + 84, winTop + 12, 64, 20).build());
+        minusBtn = ButtonWidget.builder(Text.literal("−"), b -> onLengthChanged(PatternState.get().getLength() - 1))
+                .dimensions(controlsPad, btnY, btnW, btnH).build();
+        plusBtn = ButtonWidget.builder(Text.literal("+"), b -> onLengthChanged(PatternState.get().getLength() + 1))
+                .dimensions(controlsPad + btnW + 4, btnY, btnW, btnH).build();
 
-        // ===== кнопка "Вставить в чат" (без автосенда) =====
-        addDrawableChild(ButtonWidget.builder(Text.literal("Вставить в чат"), b -> {
-            String best = suggestions != null ? suggestions.getSelectedOrFirst() : null;
-            if (best != null) insertToChat(best);
-        }).dimensions(winLeft + 152, winTop + 12, 196, 20).build());
+        clearBtn = ButtonWidget.builder(Text.literal("Очистить"), b -> {
+                    PatternState.get().clearAll();
+                    // просто обновим поле без потери длины
+                    rebuildSlots(); // перерисуем значения
+                    focusFirstEmpty();
+                    GTBHelper.updateSuggestionsAsync();
+                })
+                .dimensions(controlsPad + (btnW + 4) * 2 + 6, btnY, 70, btnH).build();
 
-        // первичное создание слотов и списка
-        rebuildSlotsAndList();
+        closeBtn = ButtonWidget.builder(Text.literal("Закрыть"), b -> onClose())
+                .dimensions(width - controlsPad - 72, btnY, 72, btnH).build();
 
-        // подтягиваем обновления от PatternState (например, из action bar)
-        state.setListener(s -> {
-            if (lengthField != null && s.getLength() != parseLen(lengthField.getText())) {
-                lengthField.setText(Integer.toString(s.getLength()));
-                rebuildSlotsAndList();
-            }
-            recalcCandidates();
-        });
+        addDrawableChild(minusBtn);
+        addDrawableChild(plusBtn);
+        addDrawableChild(clearBtn);
+        addDrawableChild(closeBtn);
+
+        // Слоты символов
+        rebuildSlots();
+
+        // Список подсказок (ниже слотов)
+        int listTop = calcSlotsY() + slotHeight + 14;
+        int listHeight = Math.max(40, height - listTop - 10);
+        suggestionList = new SuggestionListWidget(client, width - controlsPad * 2, listHeight,
+                listTop, controlsPad, width - controlsPad);
+        addSelectableChild(suggestionList);
+
+        // Запуск пересчёта под уже известный паттерн
+        GTBHelper.updateSuggestionsAsync();
     }
 
-    private int parseLen(String s) {
-        try { return Math.max(1, Math.min(64, Integer.parseInt(s.trim()))); }
-        catch (Exception e) { return 1; }
-    }
+    private void rebuildSlots() {
+        // удалить прежние CharSlotWidget из children
+        this.children().removeIf(c -> c instanceof CharSlotWidget);
+        this.drawables.removeIf(d -> d instanceof CharSlotWidget);
+        this.selectables.removeIf(s -> s instanceof CharSlotWidget);
+        slots.clear();
 
-    private void insertToChat(String text) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.player != null) {
-            mc.keyboard.setClipboard(text);
-            if (mc.inGameHud != null) {
-                mc.inGameHud.getChatHud().addToMessageHistory(text);
-            }
-            mc.setScreen(null);
-        }
-    }
-    private void recalcCandidates() {
-        if (suggestions == null) return;
-        String regex = state.toPatternRegex();
-        int len = state.getLength();
-        java.util.List<String> result = com.romoz.gtb.logic.CandidatesProvider.find(regex, len);
-        suggestions.setItems(result);
-        lastChangeNanos = Long.MAX_VALUE;
-    }
+        int len = PatternState.get().getLength();
+        if (len < MIN_LEN) len = MIN_LEN;
+        if (len > MAX_LEN) len = MAX_LEN;
 
-    private void clearDynamicWidgets() {
-        // аккуратно удаляем ранее добавленные слоты/список через публичный API
-        for (Object o : dynamicWidgets) {
-            if (o instanceof SuggestionListWidget w) this.remove(w);
-            else if (o instanceof CharSlotWidget w) this.remove(w);
-        }
-        dynamicWidgets.clear();
-        suggestions = null;
-    }
+        IntConsumer focus = this::focusSlot;
 
-    private void rebuildSlotsAndList() {
-        clearDynamicWidgets();
+        int startX = calcSlotsStartX(len);
+        int y = calcSlotsY();
 
-        // ===== сетка слотов =====
-        int len = state.getLength();
-        int x = winLeft + 12;
-        int y = winTop + 44;
-
-        // …в методе rebuildSlotsAndList():
         for (int i = 0; i < len; i++) {
-            final int slotIndex = i; // фиксируем индекс для использования в лямбде
-
-            int col = i % MAX_PER_ROW;
-            int row = i / MAX_PER_ROW;
-            int cx = x + col * (CELL + GAP);
-            int cy = y + row * (CELL + GAP);
-
-            CharSlotWidget slot = new CharSlotWidget(
-                textRenderer, cx, cy, CELL, CELL, i,
-                ch -> {
-                    // теперь используем slotIndex, а не изменяемый i
-                    state.setChar(slotIndex, ch);
-                    recalcCandidates(); 
-                }
-            );
-            CharSlotWidget added = addDrawableChild(slot);
-            dynamicWidgets.add(added);
+            int x = startX + i * (slotWidth + slotGap);
+            CharSlotWidget slot = new CharSlotWidget(x, y, slotWidth, slotHeight, i, focus);
+            // подтянуть значение из state (если есть)
+            slot.refreshFromState();
+            addDrawableChild(slot);
+            slots.add(slot);
         }
 
-
-        // ===== список кандидатов =====
-        int rows = (int)Math.ceil(len / (double)MAX_PER_ROW);
-        int listLeft = winLeft + 12;
-        int listTop  = y + rows * (CELL + GAP) + 8;
-        int listW    = 336;
-        int listH    = 120;
-
-        suggestions = new SuggestionListWidget(client, listW, listH, listTop, listTop + listH);
-        suggestions.setX(listLeft);
-        SuggestionListWidget addedList = addDrawableChild(suggestions);
-        dynamicWidgets.add(addedList);
-
-        markDirty(); // пересчитать кандидатов с новым layout
+        focusFirstEmpty();
     }
 
-    private void markDirty() {
-        lastChangeNanos = System.nanoTime();
+    private int calcSlotsY() {
+        return topPad + 10;
+    }
+
+    private int calcSlotsStartX(int len) {
+        int totalW = len * slotWidth + (len - 1) * slotGap;
+        return Math.max(controlsPad, (width - totalW) / 2);
+    }
+
+    private void focusFirstEmpty() {
+        int len = PatternState.get().getLength();
+        int firstEmpty = 0;
+        for (int i = 0; i < len; i++) {
+            if (PatternState.get().getChar(i) == '\0') { firstEmpty = i; break; }
+        }
+        focusSlot(firstEmpty);
+    }
+
+    private void focusSlot(int i) {
+        if (slots.isEmpty()) return;
+        if (i < 0) i = 0;
+        if (i >= slots.size()) i = slots.size() - 1;
+        setFocused(slots.get(i));
+    }
+
+    private void onLengthChanged(int newLen) {
+        int clamped = Math.max(MIN_LEN, Math.min(MAX_LEN, newLen));
+        if (clamped == PatternState.get().getLength()) return;
+        PatternState.get().setLength(clamped);
+        rebuildSlots();
+        GTBHelper.updateSuggestionsAsync();
     }
 
     @Override
-    public void tick() {
-        // Дебаунс пересчёта списка
-        if (suggestions != null && System.nanoTime() - lastChangeNanos >= DEBOUNCE_NS) {
-            String regex = state.toPatternRegex();
-            int len = state.getLength();
-            List<String> result = CandidatesProvider.find(regex, len);
-            suggestions.setItems(result);
-            lastChangeNanos = Long.MAX_VALUE; // ждать следующее изменение
-        }
+    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        renderBackground(ctx);
+        super.render(ctx, mouseX, mouseY, delta);
+
+        // Заголовок и текущая длина
+        String title = "GTB Solver";
+        String lenText = "Длина: " + PatternState.get().getLength();
+
+        var tr = MinecraftClient.getInstance().textRenderer;
+        int titleW = tr.getWidth(title);
+        ctx.drawText(tr, title, (width - titleW) / 2, 8, 0xFFFFFF, false);
+        ctx.drawText(tr, lenText, controlsPad + 2, 8, 0xA0FFFFFF, false);
     }
 
     @Override
-    public void render(DrawContext dc, int mouseX, int mouseY, float delta) {
-        this.renderBackground(dc, mouseX, mouseY, delta);
-        // фон окна
-        dc.fill(winLeft, winTop, winLeft + winW, winTop + winH, 0xC0101010);
-        super.render(dc, mouseX, mouseY, delta);
-        // заголовки
-        dc.drawText(textRenderer, Text.literal("GTB Solver"), winLeft + 12, winTop - 10, 0xFFFFFF, true);
-        dc.drawText(textRenderer, Text.literal("Длина"),     winLeft + 12, winTop + 2,  0xAAAAAA, false);
-        if (suggestions != null) {
-            String caption = "Совпадения: " + suggestions.getCount();
-            dc.drawText(textRenderer, Text.literal(caption), winLeft + 12, winTop + winH - 12, 0xAAAAAA, false);
-        }
-
+    public boolean shouldPause() {
+        return false;
     }
 
     @Override
-    public boolean shouldCloseOnEsc() {
-        return true;
+    public void resize(MinecraftClient client, int width, int height) {
+        super.resize(client, width, height);
+        // пересобрать компоновку при смене размера
+        this.init(client, width, height);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Навигация по списку ↑/↓/Enter
-        if (suggestions != null) {
-            if (keyCode == GLFW.GLFW_KEY_UP) {
-                suggestions.moveSelection(-1);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_DOWN) {
-                suggestions.moveSelection(+1);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_ENTER) {
-                String sel = suggestions.getSelectedOrFirst();
-                if (sel != null) insertToChat(sel);
-                return true;
-            }
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+    public void onClose() {
+        // состояние уже сохранено в PatternState по факту ввода — просто закрываем
+        super.onClose();
+        if (client != null) client.setScreen(null);
     }
 }
