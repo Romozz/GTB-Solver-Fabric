@@ -24,6 +24,7 @@ public class GTBSolver implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        PatternState.get().load();
         openOverlayKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.gtbsolver.open_overlay",   // lang key
                 GLFW.GLFW_KEY_GRAVE_ACCENT,     // `
@@ -72,3 +73,4 @@ public class GTBSolver implements ClientModInitializer {
         }
     }
 }
+
