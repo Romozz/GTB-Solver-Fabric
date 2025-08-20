@@ -1,7 +1,7 @@
 package com.romoz.gtb.mixin;
 
-import com.romoz.gtb.ui.PatternState;
 import com.romoz.gtb.GTBHelper;
+import com.romoz.gtb.ui.PatternState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.text.Text;
@@ -19,59 +19,50 @@ import java.util.regex.Pattern;
 public abstract class ActionBarMixin {
     @Shadow @Final private MinecraftClient client;
 
-    @Inject(method = "setOverlayMessage", at = @At("TAIL"))
+    @Inject(method = "setOverlayMessage(Lnet/minecraft/text/Text;Z)V", at = @At("TAIL"))
     private void gtb$onOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
         if (message == null) return;
         String raw = message.getString();
         if (raw == null || raw.isEmpty()) return;
 
-        // 1) Попробуем найти «N Letters» / «Length: N»
-        Matcher lenM = Pattern.compile("(?:\\b(?:len(?:gth)?|letters?)\\s*[:=-]?\\s*)(\\d{1,2})", Pattern.CASE_INSENSITIVE).matcher(raw);
+        // 1) Парсим длину, если она явно указана
+        Matcher lenM = Pattern.compile("(?:\\b(?:len(?:gth)?|letters?)\\s*[:=-]?\\s*)(\\d{1,2})",
+                Pattern.CASE_INSENSITIVE).matcher(raw);
         Integer parsedLen = null;
-        if (lenM.find()) {
-            parsedLen = Integer.parseInt(lenM.group(1));
-        }
+        if (lenM.find()) parsedLen = Integer.parseInt(lenM.group(1));
 
-        // 2) Маска вида "__A_B" или "A _ _ _ Z"
-        // Берём самую длинную последовательность символов [_A-Za-z ] с минимум 2 символами
+        // 2) Ищем «маску» из букв и подчёркиваний
         Matcher maskM = Pattern.compile("([_A-Za-z\\s]{2,})").matcher(raw);
         String best = null;
         while (maskM.find()) {
             String s = maskM.group(1).trim();
-            // отфильтруем мусор, оставим те, где есть '_' или буквы, и нет цифр
             if (s.chars().anyMatch(ch -> ch == '_' || Character.isLetter(ch))) {
                 if (best == null || s.length() > best.length()) best = s;
             }
         }
-
         if (best == null && parsedLen == null) return;
 
-        // Нормализуем маску: удалим пробелы между слотами, если они есть
         String normalized = null;
         if (best != null) {
-            normalized = best.replaceAll("\\s+", "");
-            // оставим только буквы и '_'
-            normalized = normalized.replaceAll("[^A-Za-z_]", "");
+            normalized = best.replaceAll("\\s+", "").replaceAll("[^A-Za-z_]", "");
         }
 
+        // >>> ключевой фикс: делаем переменные "effectively final" для лямбды
+        final String normalizedF = normalized;
+        final Integer parsedLenF = parsedLen;
+
         client.execute(() -> {
-            PatternState st = PatternState.get();
-
-            if (normalized != null && !normalized.isEmpty()) {
-                int L = normalized.length();
-                st.setLength(L);
+            if (normalizedF != null && !normalizedF.isEmpty()) {
+                int L = normalizedF.length();
+                PatternState.get().setLength(L);
                 for (int i = 0; i < L; i++) {
-                    char c = normalized.charAt(i);
-                    st.setChar(i, c == '_' ? '\0' : Character.toUpperCase(c));
+                    char c = normalizedF.charAt(i);
+                    PatternState.get().setChar(i, c == '_' ? '\0' : Character.toUpperCase(c));
                 }
-            } else if (parsedLen != null) {
-                st.setLength(parsedLen);
-                // буквы оставим как были (или пустыми, если новая длина)
+            } else if (parsedLenF != null) {
+                PatternState.get().setLength(parsedLenF);
             }
-
-            // обновить GUI-подсказки, если экран открыт
             GTBHelper.updateSuggestionsAsync();
         });
     }
 }
-
