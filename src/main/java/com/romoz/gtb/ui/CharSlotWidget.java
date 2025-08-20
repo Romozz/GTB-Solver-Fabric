@@ -3,7 +3,7 @@ package com.romoz.gtb.ui;
 import com.romoz.gtb.GTBHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder; // <-- правильный импорт для 1.21.x
+import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
@@ -78,8 +78,9 @@ public class CharSlotWidget extends ClickableWidget {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
+    /** В 1.21.4 нужно переопределять renderWidget(), а не renderButton(). */
     @Override
-    protected void renderButton(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    protected void renderWidget(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int x0 = getX(), y0 = getY(), x1 = x0 + getWidth(), y1 = y0 + getHeight();
 
         ctx.fill(x0, y0, x1, y1, fillColor);
