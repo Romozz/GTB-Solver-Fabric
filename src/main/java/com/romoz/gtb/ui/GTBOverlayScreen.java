@@ -1,5 +1,6 @@
 package com.romoz.gtb.ui;
 
+import com.romoz.gtb.GTBHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -10,29 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
 
-/**
- * Экран оверлея GTB Solver.
- * Особенности:
- *  - Восстанавливает состояние длины и букв из PatternState при открытии
- *  - Не сбрасывает визуальный ввод при обновлении подсказок
- *  - Автофокус на первый пустой слот
- *  - Кнопки для изменения длины (−/+), перестраивание слотов без потери набранного
- *
- * Требует:
- *  - CharSlotWidget (с авто-прыжком вперёд и Backspace логикой)
- *  - PatternState (getLength, setLength, getChar, setChar, snapshot)
- *  - GTBHelper.updateSuggestionsAsync()
- *  - SuggestionListWidget (отображение списка слов)
- */
 public class GTBOverlayScreen extends Screen {
 
     private static final int MIN_LEN = 1;
     private static final int MAX_LEN = 25;
 
     private final List<CharSlotWidget> slots = new ArrayList<>();
-    private SuggestionListWidget suggestionList;
 
-    // Геометрия слотов и контролов
     private int slotWidth = 18;
     private int slotHeight = 22;
     private int slotGap = 4;
@@ -50,10 +35,9 @@ public class GTBOverlayScreen extends Screen {
 
     @Override
     protected void init() {
-        this.clearChildren(); // на случай повторной инициализации
+        this.clearChildren();
         slots.clear();
 
-        // Кнопки управления длиной и очисткой
         int btnY = topPad - 24;
         int btnW = 20;
         int btnH = 20;
@@ -65,14 +49,13 @@ public class GTBOverlayScreen extends Screen {
 
         clearBtn = ButtonWidget.builder(Text.literal("Очистить"), b -> {
                     PatternState.get().clearAll();
-                    // просто обновим поле без потери длины
-                    rebuildSlots(); // перерисуем значения
+                    rebuildSlots();
                     focusFirstEmpty();
                     GTBHelper.updateSuggestionsAsync();
                 })
                 .dimensions(controlsPad + (btnW + 4) * 2 + 6, btnY, 70, btnH).build();
 
-        closeBtn = ButtonWidget.builder(Text.literal("Закрыть"), b -> onClose())
+        closeBtn = ButtonWidget.builder(Text.literal("Закрыть"), b -> close())
                 .dimensions(width - controlsPad - 72, btnY, 72, btnH).build();
 
         addDrawableChild(minusBtn);
@@ -80,31 +63,22 @@ public class GTBOverlayScreen extends Screen {
         addDrawableChild(clearBtn);
         addDrawableChild(closeBtn);
 
-        // Слоты символов
         rebuildSlots();
 
-        // Список подсказок (ниже слотов)
+        // твой SuggestionListWidget, судя по ошибке, имеет одну из сигнатур:
+        // (MinecraftClient,int,int,int,int) — используем её
         int listTop = calcSlotsY() + slotHeight + 14;
         int listHeight = Math.max(40, height - listTop - 10);
-        suggestionList = new SuggestionListWidget(client, width - controlsPad * 2, listHeight,
-                listTop, controlsPad, width - controlsPad);
-        addSelectableChild(suggestionList);
+        SuggestionListWidget.INSTANCE = new SuggestionListWidget(client, width - controlsPad * 2, listHeight,
+                listTop, controlsPad);
+        addSelectableChild(SuggestionListWidget.INSTANCE);
 
-        // Запуск пересчёта под уже известный паттерн
         GTBHelper.updateSuggestionsAsync();
     }
 
     private void rebuildSlots() {
-        // удалить прежние CharSlotWidget из children
-        this.children().removeIf(c -> c instanceof CharSlotWidget);
-        this.drawables.removeIf(d -> d instanceof CharSlotWidget);
-        this.selectables.removeIf(s -> s instanceof CharSlotWidget);
-        slots.clear();
-
-        int len = PatternState.get().getLength();
-        if (len < MIN_LEN) len = MIN_LEN;
-        if (len > MAX_LEN) len = MAX_LEN;
-
+        // перестраиваем весь экран, чтобы не лезть в приватные списки Screen
+        int len = Math.max(MIN_LEN, Math.min(MAX_LEN, PatternState.get().getLength()));
         IntConsumer focus = this::focusSlot;
 
         int startX = calcSlotsStartX(len);
@@ -113,7 +87,6 @@ public class GTBOverlayScreen extends Screen {
         for (int i = 0; i < len; i++) {
             int x = startX + i * (slotWidth + slotGap);
             CharSlotWidget slot = new CharSlotWidget(x, y, slotWidth, slotHeight, i, focus);
-            // подтянуть значение из state (если есть)
             slot.refreshFromState();
             addDrawableChild(slot);
             slots.add(slot);
@@ -122,9 +95,7 @@ public class GTBOverlayScreen extends Screen {
         focusFirstEmpty();
     }
 
-    private int calcSlotsY() {
-        return topPad + 10;
-    }
+    private int calcSlotsY() { return topPad + 10; }
 
     private int calcSlotsStartX(int len) {
         int totalW = len * slotWidth + (len - 1) * slotGap;
@@ -151,41 +122,29 @@ public class GTBOverlayScreen extends Screen {
         int clamped = Math.max(MIN_LEN, Math.min(MAX_LEN, newLen));
         if (clamped == PatternState.get().getLength()) return;
         PatternState.get().setLength(clamped);
-        rebuildSlots();
+        // просто реинициализируем весь экран
+        this.init(MinecraftClient.getInstance(), this.width, this.height);
         GTBHelper.updateSuggestionsAsync();
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        renderBackground(ctx);
+        renderBackground(ctx, mouseX, mouseY, delta);
         super.render(ctx, mouseX, mouseY, delta);
 
-        // Заголовок и текущая длина
+        var tr = MinecraftClient.getInstance().textRenderer;
         String title = "GTB Solver";
         String lenText = "Длина: " + PatternState.get().getLength();
-
-        var tr = MinecraftClient.getInstance().textRenderer;
         int titleW = tr.getWidth(title);
         ctx.drawText(tr, title, (width - titleW) / 2, 8, 0xFFFFFF, false);
         ctx.drawText(tr, lenText, controlsPad + 2, 8, 0xA0FFFFFF, false);
     }
 
     @Override
-    public boolean shouldPause() {
-        return false;
-    }
+    public boolean shouldCloseOnEsc() { return true; }
 
     @Override
-    public void resize(MinecraftClient client, int width, int height) {
-        super.resize(client, width, height);
-        // пересобрать компоновку при смене размера
-        this.init(client, width, height);
-    }
-
-    @Override
-    public void onClose() {
-        // состояние уже сохранено в PatternState по факту ввода — просто закрываем
-        super.onClose();
+    public void close() {
         if (client != null) client.setScreen(null);
     }
 }
