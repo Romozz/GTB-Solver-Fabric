@@ -1,8 +1,8 @@
 package com.romoz.gtb;
 
 import com.romoz.gtb.ui.SuggestionListWidget;
-import com.romoz.gtb.words.GTBWordList;
-import com.romoz.gtb.state.PatternState;
+import com.romoz.gtb.GTBWordList;
+import com.romoz.gtb.ui.PatternState;
 import net.minecraft.client.MinecraftClient;
 
 import java.util.ArrayList;
@@ -122,3 +122,4 @@ public final class GTBHelper {
         return filterWords(p, len);
     }
 }
+
