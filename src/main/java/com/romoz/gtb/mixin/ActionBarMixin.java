@@ -26,13 +26,13 @@ public abstract class ActionBarMixin {
         if (raw == null || raw.isEmpty()) return;
 
         // 1) Парсим длину, если она явно указана
-        Matcher lenM = Pattern.compile("(?:\\b(?:len(?:gth)?|letters?)\\s*[:=-]?\\s*)(\\d{1,2})",
-                Pattern.CASE_INSENSITIVE).matcher(raw);
+        Matcher lenM = Pattern.compile("(?:\\b(?:len(?:gth)?|letters?|длина|буквы)\\s*[:=-]?\\s*)(\\d{1,2})",
+                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(raw);
         Integer parsedLen = null;
         if (lenM.find()) parsedLen = Integer.parseInt(lenM.group(1));
 
-        // 2) Ищем «маску» из букв и подчёркиваний
-        Matcher maskM = Pattern.compile("([_A-Za-z\\s]{2,})").matcher(raw);
+        // 2) Ищем «маску» из букв (латиница + кириллица) и подчёркиваний
+        Matcher maskM = Pattern.compile("([_A-Za-zА-Яа-яЁё\\s]{2,})").matcher(raw);
         String best = null;
         while (maskM.find()) {
             String s = maskM.group(1).trim();
@@ -44,7 +44,8 @@ public abstract class ActionBarMixin {
 
         String normalized = null;
         if (best != null) {
-            normalized = best.replaceAll("\\s+", "").replaceAll("[^A-Za-z_]", "");
+            normalized = best.replaceAll("\\s+", "")
+                    .replaceAll("[^A-Za-zА-Яа-яЁё_]", "");
         }
 
         // >>> ключевой фикс: делаем переменные "effectively final" для лямбды
