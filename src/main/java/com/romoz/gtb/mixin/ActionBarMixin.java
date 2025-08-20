@@ -9,51 +9,61 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(InGameHud.class)
-public class ActionBarMixin {
+public abstract class ActionBarMixin {
+    @Shadow @Final private MinecraftClient client;
 
-    @Inject(method = "setOverlayMessage(Lnet/minecraft/text/Text;Z)V", at = @At("HEAD"))
-    private void gtbsolver$onActionBar(Text message, boolean tinted, CallbackInfo ci) {
+    @Inject(method = "setOverlayMessage", at = @At("TAIL"))
+    private void gtb$onOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
         if (message == null) return;
         String raw = message.getString();
-        // Пробуем распарсить и сразу применить к состоянию UI
-        tryParseAndApply(raw, PatternState.get());
-    }
+        if (raw == null || raw.isEmpty()) return;
 
-    /**
-     * Парсим action bar Hypixel и прямо обновляем состояние.
-     * Возвращает true, если удалось распознать подсказку.
-     */
-    private boolean tryParseAndApply(String raw, PatternState st) {
-        if (raw == null || raw.isEmpty()) return false;
+        // 1) Попробуем найти «N Letters» / «Length: N»
+        Matcher lenM = Pattern.compile("(?:\\b(?:len(?:gth)?|letters?)\\s*[:=-]?\\s*)(\\d{1,2})", Pattern.CASE_INSENSITIVE).matcher(raw);
+        Integer parsedLen = null;
+        if (lenM.find()) {
+            parsedLen = Integer.parseInt(lenM.group(1));
+        }
 
-        // Вариант 1: строка вида "__a____a_" (разрешаем буквы/подчёркивания/дефисы/пробелы)
-        if (raw.matches("[A-Za-zА-Яа-я _-]+")) {
-            String compact = raw.replace(" ", "").replace("-", "");
-            int len = compact.length();
-            if (len >= 1 && len <= 64) {
-                st.setLength(len);
-                for (int i = 0; i < len; i++) {
-                    char ch = compact.charAt(i);
-                    if (ch != '_') {
-                        st.setChar(i, Character.toLowerCase(ch));
-                    }
+        // 2) Маска вида "__A_B" или "A _ _ _ Z"
+        // Берём самую длинную последовательность символов [_A-Za-z ] с минимум 2 символами
+        Matcher maskM = Pattern.compile("([_A-Za-z\\s]{2,})").matcher(raw);
+        String best = null;
+        while (maskM.find()) {
+            String s = maskM.group(1).trim();
+            // отфильтруем мусор, оставим те, где есть '_' или буквы, и нет цифр
+            if (s.chars().anyMatch(ch -> ch == '_' || Character.isLetter(ch))) {
+                if (best == null || s.length() > best.length()) best = s;
+            }
+        }
+
+        if (best == null && parsedLen == null) return;
+
+        // Нормализуем маску: удалим пробелы между слотами, если они есть
+        String normalized = null;
+        if (best != null) {
+            normalized = best.replaceAll("\\s+", "");
+            // оставим только буквы и '_'
+            normalized = normalized.replaceAll("[^A-Za-z_]", "");
+        }
+
+        client.execute(() -> {
+            PatternState st = PatternState.get();
+
+            if (normalized != null && !normalized.isEmpty()) {
+                int L = normalized.length();
+                st.setLength(L);
+                for (int i = 0; i < L; i++) {
+                    char c = normalized.charAt(i);
+                    st.setChar(i, c == '_' ? '\0' : Character.toUpperCase(c));
                 }
-                return true;
+            } else if (parsedLen != null) {
+                st.setLength(parsedLen);
+                // буквы оставим как были (или пустыми, если новая длина)
             }
-        }
 
-        // Вариант 2: "10 letters" (английский текст подсказки длины)
-        String low = raw.toLowerCase();
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s+letters").matcher(low);
-        if (m.find()) {
-            int len = Integer.parseInt(m.group(1));
-            if (len >= 1 && len <= 64) {
-                st.setLength(len);
-                st.clear();
-                return true;
-            }
-        }
-
-        return false;
+            // обновить GUI-подсказки, если экран открыт
+            GTBHelper.updateSuggestionsAsync();
+        });
     }
 }
