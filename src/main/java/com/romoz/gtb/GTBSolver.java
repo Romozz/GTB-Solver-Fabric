@@ -36,7 +36,7 @@ public class GTBSolver implements ClientModInitializer {
             while (openOverlayKey.wasPressed()) {
                 MinecraftClient mc = MinecraftClient.getInstance();
                 if (mc.currentScreen == null) {
-                    mc.setScreen(new GTBOverlayScreen(PatternState.get()));
+                    mc.setScreen(new GTBOverlayScreen());
                 }
             }
         });
@@ -73,4 +73,5 @@ public class GTBSolver implements ClientModInitializer {
         }
     }
 }
+
 
